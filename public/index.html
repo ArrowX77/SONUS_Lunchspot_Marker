@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kantine Live-Plan</title>
+    
+    <style>
+        body { 
+            margin: 0; 
+            padding: 20px; 
+            text-align: center; 
+            background: #e0e0e0; 
+            font-family: sans-serif; 
+        }
+        
+        h2 { color: #333; margin-bottom: 10px; }
+        p { color: #666; margin-top: 0; font-size: 18px; }
+
+        #map-container { 
+            position: relative; 
+            display: inline-block; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
+            line-height: 0; 
+            user-select: none; 
+            -webkit-user-select: none;
+        }
+
+        #canteen-map { 
+            max-width: 100%; 
+            height: auto; 
+            cursor: crosshair; 
+            display: block;
+        }
+
+        /* Der rote Punkt */
+        #red-dot {
+            position: absolute; 
+            width: 30px; height: 30px; 
+            background: red; 
+            border-radius: 50%; 
+            border: 3px solid white;
+            transform: translate(-50%, -50%); 
+            display: none; 
+            pointer-events: none; 
+            z-index: 100;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        /* Das Textfeld (Sprechblase) */
+        #dot-label {
+            position: absolute;
+            
+            /* 1. ABSTAND VERRINGERT */
+            /* War vorher -80px, jetzt -65px -> näher am Punkt */
+            top: -65px; 
+            
+            left: 50%;
+            transform: translateX(-50%); 
+            background: white;
+            
+            /* 3. RAHMEN GRÖSSER GEMACHT (PADDING) */
+            /* 15px oben/unten, 30px links/rechts -> Viel Platz für den Text */
+            padding: 15px 30px; 
+            
+            border-radius: 10px;
+            
+            /* 2. SCHRIFTGRÖSSE ANGEPASST */
+            font-size: 30px; 
+            
+            font-weight: bold;
+            color: #333;
+            white-space: nowrap; /* Verhindert Umbruch */
+            border: 2px solid #999;
+            box-shadow: 4px 4px 10px rgba(0,0,0,0.3);
+        }
+
+        /* Der Pfeil unter dem Text */
+        #dot-label::after {
+            content: "";
+            position: absolute;
+            bottom: -15px; 
+            left: 50%;
+            margin-left: -15px; 
+            border-width: 15px; 
+            border-style: solid;
+            border-color: white transparent transparent transparent;
+        }
+        
+        /* Der Rand für den Pfeil */
+        #dot-label::before {
+            content: "";
+            position: absolute;
+            bottom: -18px; 
+            left: 50%;
+            margin-left: -15px;
+            border-width: 15px; 
+            border-style: solid;
+            border-color: #999 transparent transparent transparent;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>SONUS Lunchspot Marker UT135</h2>
+    <p>Klicke auf den Plan, um den Standort zu markieren.</p>
+    
+    <div id="map-container">
+        <img src="plan.jpg" id="canteen-map" alt="Kantine Plan">
+        
+        <div id="red-dot">
+            <div id="dot-label"></div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script>
+        const socket = io();
+        const mapContainer = document.getElementById('map-container');
+        const redDot = document.getElementById('red-dot');
+        const dotLabel = document.getElementById('dot-label');
+
+        function getTimeString() {
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            
+            return `${day}.${month}. ${hours}:${minutes}`;
+        }
+
+        mapContainer.addEventListener('click', (e) => {
+            const rect = mapContainer.getBoundingClientRect();
+            
+            const x = (e.clientX - rect.left) / rect.width * 100;
+            const y = (e.clientY - rect.top) / rect.height * 100;
+            const timeInfo = getTimeString();
+
+            socket.emit('mark_table', { x, y, label: timeInfo });
+        });
+
+        socket.on('update_position', (data) => {
+            if(data) {
+                redDot.style.display = 'block';
+                redDot.style.left = data.x + '%';
+                redDot.style.top = data.y + '%';
+                dotLabel.innerText = data.label || ""; 
+            }
+        });
+    </script>
+</body>
+</html>
